@@ -1,0 +1,16 @@
+{
+  "name": "rollup-plugin-dts-example-rolldown",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rolldown -c",
+    "build:watch": "rolldown -c -w"
+  },
+  "devDependencies": {
+    "rolldown": "^1.0.2",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "rollup-plugin-dts": "workspace:*"
+  }
+}

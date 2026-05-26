@@ -23,14 +23,15 @@
     "verbatimModuleSyntax": true,
 
     "incremental": true,
-    "tsBuildInfoFile": ".build/tsconfig.build.tsbuildinfo",
+    "tsBuildInfoFile": "temp/tsconfig.build.tsbuildinfo",
 
     "declaration": true,
     // "declarationMap": true,
     "sourceMap": true,
+    "types": ["node"],
 
-    "outDir": ".build"
+    "outDir": "temp"
   },
-  "include": ["src", "tests", "rollup.config.ts"],
+  "include": ["src", "tests"],
   "exclude": ["tests/testcases", "tests/preprocess", "tests/oom-reproduction", "tests/sourcemap-fixtures"]
 }

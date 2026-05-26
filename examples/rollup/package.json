@@ -1,0 +1,16 @@
+{
+  "name": "rollup-plugin-dts-example-rollup",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c rollup.config.mts",
+    "build:watch": "rollup -c rollup.config.mts -w"
+  },
+  "devDependencies": {
+    "rollup": "^4.60.4",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "rollup-plugin-dts": "workspace:*"
+  }
+}

@@ -18,8 +18,9 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
-      - run: npm ci
-      - run: npm test
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
       # the codecov uploader only runs on unix,
       # frequently hangs for whatever reason,
       # and we have no platform-specific code anyway…
@@ -30,10 +31,10 @@ jobs:
         run: bash <(curl -s https://codecov.io/bash) -t ${{secrets.CODECOV_TOKEN}} -B ${{ github.ref }} -f coverage/coverage-final.json
 
       # test TypeScript 6 beta
-      - run: npm install typescript@beta
-      # aka `npm test` without the `pretest/build`
-      - run: node .build/tests/index.js
+      - run: pnpm add -D typescript@beta
+      # aka `pnpm test` without the `pretest/build`
+      - run: node temp/tests/index.js
 
       # test the minimum supported peer dependency version
-      - run: npm install typescript@4.5 rollup@3.0
-      - run: node .build/tests/index.js
+      - run: pnpm add -D typescript@4.5 rollup@3.0
+      - run: node temp/tests/index.js

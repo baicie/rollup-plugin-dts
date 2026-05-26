@@ -1,0 +1,4 @@
+packages:
+  - "."
+  - "examples/rollup"
+  - "examples/rolldown"

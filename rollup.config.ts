@@ -1,24 +1,38 @@
-import * as fs from "node:fs";
 import type { RollupWatchOptions } from "rollup";
-import dts from "./src/index.js";
+import dts from "./temp/src/index.js";
 
-const pkg = JSON.parse(fs.readFileSync("./package.json", { encoding: "utf-8" }));
 const external = ["node:module", "node:path", "node:fs", "node:fs/promises", "typescript", "rollup", "@babel/code-frame", "magic-string", "@jridgewell/remapping", "@jridgewell/sourcemap-codec", "convert-source-map"];
 
 const config: Array<RollupWatchOptions> = [
   {
-    input: "./.build/src/index.js",
+    input: "./temp/src/index.js",
     output: [
-      { file: pkg.exports.import, format: "es" },
-      { file: pkg.exports.require, format: "commonjs", exports: "named" },
+      { file: "./dist/rollup-plugin-dts.mjs", format: "es" },
+      { file: "./dist/rollup-plugin-dts.cjs", format: "commonjs", exports: "named" },
     ],
     external,
   },
   {
-    input: "./.build/src/index.d.ts",
+    input: "./temp/src/index.d.ts",
     output: [
-      { file: pkg.exports.import.replace(/\.mjs$/, ".d.mts") },
-      { file: pkg.exports.require.replace(/\.cjs$/, ".d.cts") },
+      { file: "./dist/rollup-plugin-dts.d.mts" },
+      { file: "./dist/rollup-plugin-dts.d.cts" },
+    ],
+    plugins: [dts()],
+  },
+  {
+    input: "./temp/src/rolldown.js",
+    output: [
+      { file: "./dist/rolldown.mjs", format: "es" },
+      { file: "./dist/rolldown.cjs", format: "commonjs", exports: "named" },
+    ],
+    external,
+  },
+  {
+    input: "./temp/src/rolldown.d.ts",
+    output: [
+      { file: "./dist/rolldown.d.mts" },
+      { file: "./dist/rolldown.d.cts" },
     ],
     plugins: [dts()],
   },
