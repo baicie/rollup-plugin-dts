@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import type { Plugin } from "rollup";
+import type { Plugin, TransformResult } from "rollup";
 import { type Options, resolveDefaultOptions } from "./options.js";
 import { createPrograms } from "./program.js";
 import { transform } from "./transform/index.js";
@@ -17,12 +17,46 @@ export function createDtsPlugin(options: Options = {}, compat: CreateDtsPluginOp
   const resolvedOptions = resolveDefaultOptions(options);
   const ctx = createDtsContext(resolvedOptions);
   const transformPlugin = transform(resolvedOptions.sourcemap);
+  const rolldownDtsModules = new Map<string, string>();
+
+  const rememberRolldownDts = (id: string, result: TransformResult): TransformResult => {
+    if (compat.bundler !== "rolldown" || !result || typeof result !== "object" || !("code" in result)) {
+      return result;
+    }
+
+    rolldownDtsModules.set(id.split("\\").join("/"), String(result.code));
+    return result;
+  };
+
+  const getRolldownChunkCode = (chunk: { modules?: Record<string, unknown> }): string | undefined => {
+    if (compat.bundler !== "rolldown") {
+      return undefined;
+    }
+
+    for (const id of Object.keys(chunk.modules || {})) {
+      const normalizedId = id.split("\\").join("/");
+      const declarationId = getDeclarationId(normalizedId).split("\\").join("/");
+      const code = rolldownDtsModules.get(normalizedId) ?? rolldownDtsModules.get(declarationId);
+      if (code) {
+        return code;
+      }
+    }
+    return undefined;
+  };
 
   return {
     name: compat.bundler === "rolldown" ? "rolldown-dts" : "dts",
 
     outputOptions: transformPlugin.outputOptions,
-    renderChunk: transformPlugin.renderChunk,
+    renderChunk(inputCode, chunk, outputOptions, meta) {
+      return transformPlugin.renderChunk.call(
+        this,
+        getRolldownChunkCode(chunk) ?? inputCode,
+        chunk,
+        outputOptions,
+        meta,
+      );
+    },
     generateBundle: transformPlugin.generateBundle,
 
     options(inputOptions) {
@@ -82,7 +116,7 @@ export function createDtsPlugin(options: Options = {}, compat: CreateDtsPluginOp
         const module = getModule(ctx, id, code);
         if (!module) return null;
         watchFiles(module);
-        return transformPlugin.transform.call(this, module.code, id);
+        return rememberRolldownDts(id, transformPlugin.transform.call(this, module.code, id));
       };
 
       const treatTsAsDts = () => {
@@ -90,7 +124,7 @@ export function createDtsPlugin(options: Options = {}, compat: CreateDtsPluginOp
         const module = getModule(ctx, declarationId, code);
         if (!module) return null;
         watchFiles(module);
-        return transformPlugin.transform.call(this, module.code, declarationId);
+        return rememberRolldownDts(declarationId, transformPlugin.transform.call(this, module.code, declarationId));
       };
 
       const generateDts = () => {
@@ -129,7 +163,10 @@ export function createDtsPlugin(options: Options = {}, compat: CreateDtsPluginOp
         if (!declarationText) return null;
 
         const cleanDeclarationText = declarationText.replace(/\n?\/\/# sourceMappingURL=[^\n]+/, "");
-        return transformPlugin.transform.call(this, cleanDeclarationText, declarationId, declarationMapText);
+        return rememberRolldownDts(
+          declarationId,
+          transformPlugin.transform.call(this, cleanDeclarationText, declarationId, declarationMapText),
+        );
       };
 
       if (DTS_EXTENSIONS.test(id)) {
