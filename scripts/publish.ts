@@ -1,3 +1,3 @@
 import { publish } from "@baicie/release";
 
-publish({ defaultPackage: "@baicie/plugin-dts", packageManager: "pnpm", getPkgDir: () => "." });
+publish({ defaultPackage: "plugin-dts", packageManager: "pnpm", getPkgDir: () => "." });
