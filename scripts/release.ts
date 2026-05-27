@@ -1,4 +1,4 @@
-import { release, generateChangelog } from "@baicie/release";
+import { release } from "@baicie/release";
 
 release({
   repo: "baicie/rollup-plugin-dts",
