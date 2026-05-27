@@ -1,40 +1,62 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches:
+      - rolldown
+      - main
+  pull_request:
 
 jobs:
-  build:
+  test:
+    runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
-        node: [20, latest]
-        os: [ubuntu-latest, windows-latest]
-
-    name: Node ${{ matrix.node }} on ${{ matrix.os }}
-
-    runs-on: ${{ matrix.os }}
+        os:
+          - ubuntu-latest
+          - windows-latest
+        node:
+          - 20
+          - 22
+          - 26
 
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
-      - run: pnpm install
-      - run: pnpm test
-      # the codecov uploader only runs on unix,
-      # frequently hangs for whatever reason,
-      # and we have no platform-specific code anyway…
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: E2E tests
+        run: pnpm test:e2e
+
+      # test TypeScript 6 beta
+      - name: TypeScript beta test
+        run: pnpm add -D typescript@beta && node temp/tests/index.js
+
+      # test the minimum supported peer dependency version
+      - name: Min peer deps test
+        run: pnpm add -D typescript@4.5 rollup@3.0 && node temp/tests/index.js
+
+      # upload coverage only on ubuntu latest node
       - name: upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.node == 'latest'
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
         timeout-minutes: 1
         continue-on-error: true
         run: bash <(curl -s https://codecov.io/bash) -t ${{secrets.CODECOV_TOKEN}} -B ${{ github.ref }} -f coverage/coverage-final.json
-
-      # test TypeScript 6 beta
-      - run: pnpm add -D typescript@beta
-      # aka `pnpm test` without the `pretest/build`
-      - run: node temp/tests/index.js
-
-      # test the minimum supported peer dependency version
-      - run: pnpm add -D typescript@4.5 rollup@3.0
-      - run: node temp/tests/index.js

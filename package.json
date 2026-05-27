@@ -1,6 +1,6 @@
 {
   "name": "@baicie/plugin-dts",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "description": "A rollup plugin that will bundle up your .d.ts definition files.",
   "keywords": [
     "rollup-plugin",
@@ -43,9 +43,12 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && rollup -c",
-    "prepublishOnly": "npm run test",
-    "pretest": "npm run build",
+    "prepublishOnly": "pnpm test",
+    "pretest": "pnpm run build",
     "test": "c8 node temp/tests/index.js",
+    "test:e2e": "tsx scripts/e2e.ts",
+    "test:e2e:pack": "tsx scripts/e2e-pack.ts",
+    "test:all": "pnpm test && pnpm test:e2e",
     "release": "tsx scripts/release.ts",
     "ci-publish": "tsx scripts/publish.ts",
     "postinstall": "simple-git-hooks"
