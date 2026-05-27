@@ -1,6 +1,6 @@
 {
   "name": "@baicie/plugin-dts",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A rollup plugin that will bundle up your .d.ts definition files.",
   "keywords": [
     "rollup-plugin",
