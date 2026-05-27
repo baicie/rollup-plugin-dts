@@ -1,3 +1,3 @@
-import { publish } from '@baicie/release'
+import { publish } from "@baicie/release";
 
-publish({ defaultPackage: 'rollup-plugin-dts' })
+publish({ defaultPackage: "ncu", packageManager: "pnpm", getPkgDir: () => "." });
