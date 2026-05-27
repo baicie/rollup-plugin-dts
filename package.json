@@ -1,6 +1,6 @@
 {
   "name": "@baicie/plugin-dts",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "A rollup plugin that will bundle up your .d.ts definition files.",
   "keywords": [
     "rollup-plugin",
@@ -9,19 +9,16 @@
     "@types"
   ],
   "packageManager": "pnpm@10.33.4",
-  "author": "Arpad Borsos <arpad.borsos@googlemail.com>",
+  "author": "baicie",
   "license": "LGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Swatinem/rollup-plugin-dts.git"
+    "url": "git+https://github.com/baicie/rollup-plugin-dts.git"
   },
   "bugs": {
-    "url": "https://github.com/Swatinem/rollup-plugin-dts/issues"
+    "url": "https://github.com/baicie/rollup-plugin-dts/issues"
   },
-  "funding": {
-    "url": "https://github.com/sponsors/Swatinem"
-  },
-  "homepage": "https://github.com/Swatinem/rollup-plugin-dts#readme",
+  "homepage": "https://github.com/baicie/rollup-plugin-dts#readme",
   "engines": {
     "node": ">=20"
   },
