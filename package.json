@@ -66,6 +66,7 @@
     "@types/babel__code-frame": "^7.27.0",
     "@types/convert-source-map": "^2.0.3",
     "@types/d3-drag": "^3.0.7",
+    "d3-drag-local": "npm:@types/d3-drag@3.0.7",
     "@types/estree": "1.0.9",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
