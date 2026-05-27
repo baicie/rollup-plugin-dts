@@ -61,7 +61,7 @@
     "trailingComma": "all"
   },
   "devDependencies": {
-    "@baicie/release": "^0.1.15",
+    "@baicie/release": "^0.2.0",
     "@baicie/scripts": "^0.1.2",
     "@babel/code-frame": "^7.29.7",
     "@jridgewell/trace-mapping": "^0.3.31",
