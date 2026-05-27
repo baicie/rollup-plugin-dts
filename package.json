@@ -1,6 +1,6 @@
 {
-  "name": "rollup-plugin-dts",
-  "version": "6.4.1",
+  "name": "@baicie/plugin-dts",
+  "version": "0.0.1",
   "description": "A rollup plugin that will bundle up your .d.ts definition files.",
   "keywords": [
     "rollup-plugin",
@@ -47,13 +47,21 @@
     "build": "tsc -p tsconfig.build.json && rollup -c",
     "prepublishOnly": "npm run test",
     "pretest": "npm run build",
-    "test": "c8 node temp/tests/index.js"
+    "test": "c8 node temp/tests/index.js",
+    "release": "tsx scripts/release.ts",
+    "ci-publish": "tsx scripts/publish.ts",
+    "postinstall": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "commit-msg": "tsx scripts/verify-commit.ts"
   },
   "prettier": {
     "printWidth": 120,
     "trailingComma": "all"
   },
   "devDependencies": {
+    "@baicie/release": "^0.1.15",
+    "@baicie/scripts": "^0.1.2",
     "@babel/code-frame": "^7.29.7",
     "@jridgewell/trace-mapping": "^0.3.31",
     "@types/babel__code-frame": "^7.27.0",
@@ -65,12 +73,22 @@
     "c8": "^11.0.0",
     "rolldown": "^1.0.2",
     "rollup": "4.60.4",
+    "simple-git-hooks": "^2.13.1",
+    "tsx": "^4.22.3",
     "typescript": "6.0.3"
   },
   "peerDependencies": {
     "rollup": "^3.29.4 || ^4",
     "rolldown": "^1",
     "typescript": "^4.5 || ^5.0 || ^6.0"
+  },
+  "peerDependenciesMeta": {
+    "rollup": {
+      "optional": true
+    },
+    "rolldown": {
+      "optional": true
+    }
   },
   "optionalDependencies": {
     "@babel/code-frame": "^7.29.7"

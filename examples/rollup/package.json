@@ -1,5 +1,5 @@
 {
-  "name": "rollup-plugin-dts-example-rollup",
+  "name": "@baicie/plugin-dts-example-rollup",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,6 +11,6 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "rollup-plugin-dts": "workspace:*"
+    "@baicie/plugin-dts": "workspace:*"
   }
 }
