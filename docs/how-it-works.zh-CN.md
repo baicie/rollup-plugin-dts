@@ -2,11 +2,11 @@
 
 本项目以一种非常有趣的方式滥用 Rollup 的内部实现。
 
-你可能不知道，Rollup 使用**字符串操作**来生成输出文件，通过 [MagicString](https://github.com/rich-harris/magic-string) 对输入文件内容进行_修改_和_删除_部分内容。Rollup 还通过遍历输入代码的 AST 并确定哪些部分可以安全地从输出 bundle 中移除，来进行非常彻底的**死代码消除**。
+你可能不知道，Rollup 使用**字符串操作**来生成输出文件，通过 [MagicString](https://github.com/rich-harris/magic-string) 对输入文件内容进行*修改*和*删除*部分内容。Rollup 还通过遍历输入代码的 AST 并确定哪些部分可以安全地从输出 bundle 中移除，来进行非常彻底的**死代码消除**。
 
-我们可以利用这些知识来精确地引导 Rollup _保留_和_删除_输入文件的某些部分，以及[正确地重命名 Identifier](https://github.com/rollup/rollup/blob/7af842b3af052d1c305e90ac1fbf0cfb8c9fa359/src/ast/nodes/Identifier.ts#L155)。
+我们可以利用这些知识来精确地引导 Rollup *保留*和*删除*输入文件的某些部分，以及[正确地重命名 Identifier](https://github.com/rollup/rollup/blob/7af842b3af052d1c305e90ac1fbf0cfb8c9fa359/src/ast/nodes/Identifier.ts#L155)。
 
-我们的做法是将 TypeScript 代码转换成一个_虚拟 AST_，它本身只是一段非常奇怪的代码，但能让 Rollup 做我们想让它做的事情。
+我们的做法是将 TypeScript 代码转换成一个*虚拟 AST*，它本身只是一段非常奇怪的代码，但能让 Rollup 做我们想让它做的事情。
 
 ## 创建声明
 
@@ -125,7 +125,7 @@ Rollup 的稀疏 map:      6 个段  (外层)
 **sourcesContent 被拒绝**：tsserver [会拒绝](https://github.com/microsoft/TypeScript/blob/b19a9da2a3b8f2a720d314d01258dd2bdc110fef/src/services/sourcemaps.ts#L226)包含 `sourcesContent` 的 sourcemap，静默回退到无映射状态：
 
 ```typescript
-if (map.sourcesContent && map.sourcesContent.some(isString)) return undefined;
+if (map.sourcesContent && map.sourcesContent.some(isString)) return undefined
 ```
 
 我们从输出 map 中完全剥离 `sourcesContent` 以保持兼容性。

@@ -33,5 +33,10 @@
     "outDir": "temp"
   },
   "include": ["src", "tests"],
-  "exclude": ["tests/testcases", "tests/preprocess", "tests/oom-reproduction", "tests/sourcemap-fixtures"]
+  "exclude": [
+    "tests/testcases",
+    "tests/preprocess",
+    "tests/oom-reproduction",
+    "tests/sourcemap-fixtures"
+  ]
 }

@@ -155,7 +155,7 @@ For `.ts` inputs, we strip `//# sourceMappingURL` comments from emitted declarat
 **sourcesContent rejection**: tsserver [rejects](https://github.com/microsoft/TypeScript/blob/b19a9da2a3b8f2a720d314d01258dd2bdc110fef/src/services/sourcemaps.ts#L226) sourcemaps containing `sourcesContent`, silently falling back to no mapping:
 
 ```typescript
-if (map.sourcesContent && map.sourcesContent.some(isString)) return undefined;
+if (map.sourcesContent && map.sourcesContent.some(isString)) return undefined
 ```
 
 We strip `sourcesContent` entirely from output maps to stay compatible.

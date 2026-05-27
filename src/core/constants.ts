@@ -1,1 +1,1 @@
-export const TS_EXTENSIONS = /\.([cm]ts|[tj]sx?)$/;
+export const TS_EXTENSIONS = /\.([cm]ts|[tj]sx?)$/

@@ -6,5 +6,5 @@ coverage:
     patch: false
 
 comment:
-  layout: "diff"
+  layout: 'diff'
   require_changes: true

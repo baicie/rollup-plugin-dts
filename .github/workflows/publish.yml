@@ -3,7 +3,7 @@ name: Publish to NPM
 on:
   push:
     tags:
-      - plugin-dts@*"
+      - 'plugin-dts@*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

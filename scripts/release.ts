@@ -1,9 +1,9 @@
-import { release } from "@baicie/release";
+import { release } from '@baicie/release'
 
 release({
-  repo: "baicie/rollup-plugin-dts",
-  packages: ["plugin-dts"],
+  repo: 'baicie/rollup-plugin-dts',
+  packages: ['plugin-dts'],
   toTag: (pkg, version) => `${pkg}@${version}`,
-  generateChangelog: (_pkg) => {},
-  getPkgDir: () => ".", // 指定根目录
-});
+  generateChangelog: _pkg => {},
+  getPkgDir: () => '.', // 指定根目录
+})

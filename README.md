@@ -14,18 +14,18 @@ Install the package from `npm`:
 Add it to your `rollup.config.js`:
 
 ```js
-import { dts } from "rollup-plugin-dts";
+import { dts } from 'rollup-plugin-dts'
 
 const config = [
   // …
   {
-    input: "./my-input/index.d.ts",
-    output: [{ file: "dist/my-library.d.ts", format: "es" }],
+    input: './my-input/index.d.ts',
+    output: [{ file: 'dist/my-library.d.ts', format: 'es' }],
     plugins: [dts()],
   },
-];
+]
 
-export default config;
+export default config
 ```
 
 **NOTE** A [default import](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#default_import) of the plugin using `import dts from "rollup-plugin-dts";` is still supported for existing implementations of this package. However, a [named import](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#named_import) is suggested to avoid the error `[!] TypeError: dts is not a function`[^1][^2] in certain rollup config file implementations.
@@ -42,25 +42,27 @@ And then instruct typescript where to find your definitions inside your `package
 ## Options
 
 ```js
-plugins: [dts({
-  // Enable detailed sourcemaps for Go-to-Definition support.
-  // When true: loads .d.ts.map files and captures TypeScript's declarationMap
-  // for .ts inputs, enabling navigation to original source files.
-  // NOTE: Also requires `output.sourcemap: true` in your Rollup config.
-  sourcemap: true,
+plugins: [
+  dts({
+    // Enable detailed sourcemaps for Go-to-Definition support.
+    // When true: loads .d.ts.map files and captures TypeScript's declarationMap
+    // for .ts inputs, enabling navigation to original source files.
+    // NOTE: Also requires `output.sourcemap: true` in your Rollup config.
+    sourcemap: true,
 
-  // Path to tsconfig.json (default: finds nearest tsconfig.json)
-  tsconfig: "./tsconfig.json",
+    // Path to tsconfig.json (default: finds nearest tsconfig.json)
+    tsconfig: './tsconfig.json',
 
-  // TypeScript compiler options (e.g., for path mapping)
-  compilerOptions: { baseUrl: ".", paths: { "~/*": ["src/*"] } },
+    // TypeScript compiler options (e.g., for path mapping)
+    compilerOptions: { baseUrl: '.', paths: { '~/*': ['src/*'] } },
 
-  // Don't auto-externalize node_modules (default: false)
-  respectExternal: true,
+    // Don't auto-externalize node_modules (default: false)
+    respectExternal: true,
 
-  // Bundle types from specific external packages (default: [])
-  includeExternal: ["some-package"],
-})]
+    // Bundle types from specific external packages (default: [])
+    includeExternal: ['some-package'],
+  }),
+]
 ```
 
 ## Maintenance Mode
@@ -116,4 +118,5 @@ The code is licensed under the copyleft **LGPL-3.0**. I have no intention to
 license this under any non-copyleft license.
 
 [^1]: [StackOverflow thread](https://stackoverflow.com/questions/74255565/rollup-typescript-error-dts-is-not-a-function/74304876#74304876) of issue
+
 [^2]: [Github issue](https://github.com/Swatinem/rollup-plugin-dts/issues/247)

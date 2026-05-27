@@ -1,13 +1,13 @@
-import type { PluginImpl } from "rollup";
-import { createDtsPlugin } from "./shared-plugin.js";
-import type { Options } from "./options.js";
+import type { PluginImpl } from 'rollup'
+import { createDtsPlugin } from './shared-plugin.js'
+import type { Options } from './options.js'
 
-export type { Options };
+export type { Options }
 
 const plugin: PluginImpl<Options> = (options = {}) => {
   return createDtsPlugin(options, {
-    bundler: "rollup",
-  });
-};
+    bundler: 'rollup',
+  })
+}
 
-export { plugin as dts, plugin as default };
+export { plugin as dts, plugin as default }

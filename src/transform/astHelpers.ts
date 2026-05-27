@@ -1,8 +1,8 @@
-import type * as ESTree from "estree";
-import ts from "typescript";
-import { UnsupportedSyntaxError } from "./errors.js";
+import type * as ESTree from 'estree'
+import ts from 'typescript'
+import { UnsupportedSyntaxError } from './errors.js'
 
-let IDs = 1;
+let IDs = 1
 
 /**
  * Create a new `Program` for the given `node`:
@@ -10,123 +10,137 @@ let IDs = 1;
 export function createProgram(node: ts.SourceFile): ESTree.Program {
   return withStartEnd(
     {
-      type: "Program",
-      sourceType: "module",
+      type: 'Program',
+      sourceType: 'module',
       body: [],
     },
     { start: node.getFullStart(), end: node.getEnd() },
-  );
+  )
 }
 
 /**
  * Creates a reference to `id`:
  * `_ = ${id}`
  */
-export function createReference(id: ESTree.Expression): { ident: ESTree.Identifier; expr: ESTree.AssignmentPattern } {
+export function createReference(id: ESTree.Expression): {
+  ident: ESTree.Identifier
+  expr: ESTree.AssignmentPattern
+} {
   const ident: ESTree.Identifier = {
-    type: "Identifier",
+    type: 'Identifier',
     name: String(IDs++),
-  };
+  }
   return {
     ident,
     expr: {
-      type: "AssignmentPattern",
+      type: 'AssignmentPattern',
       left: ident,
       right: id,
     },
-  };
+  }
 }
 
-export function createIdentifier(node: ts.Identifier | ts.StringLiteral): ESTree.Identifier {
+export function createIdentifier(
+  node: ts.Identifier | ts.StringLiteral,
+): ESTree.Identifier {
   return withStartEnd(
     {
-      type: "Identifier",
+      type: 'Identifier',
       name: node.text,
     },
     node,
-  );
+  )
 }
 
 /**
  * Create a new Scope which is always included
  * `(function (_ = MARKER) {})()`
  */
-export function createIIFE(range: Range): { fn: ESTree.FunctionExpression; iife: ESTree.ExpressionStatement } {
+export function createIIFE(range: Range): {
+  fn: ESTree.FunctionExpression
+  iife: ESTree.ExpressionStatement
+} {
   const fn = withStartEnd<ESTree.FunctionExpression>(
     {
-      type: "FunctionExpression",
+      type: 'FunctionExpression',
       id: null,
       params: [],
-      body: { type: "BlockStatement", body: [] },
+      body: { type: 'BlockStatement', body: [] },
     },
     range,
-  );
+  )
   const iife = withStartEnd<ESTree.ExpressionStatement>(
     {
-      type: "ExpressionStatement",
+      type: 'ExpressionStatement',
       expression: {
-        type: "CallExpression",
-        callee: { type: "Identifier", name: String(IDs++) },
+        type: 'CallExpression',
+        callee: { type: 'Identifier', name: String(IDs++) },
         arguments: [fn],
         optional: false,
       },
     },
     range,
-  );
-  return { fn, iife };
+  )
+  return { fn, iife }
 }
 
 /**
  * Create a dummy ReturnStatement with an ArrayExpression:
  * `return [];`
  */
-export function createReturn(): { stmt: ESTree.Statement; expr: ESTree.ArrayExpression } {
+export function createReturn(): {
+  stmt: ESTree.Statement
+  expr: ESTree.ArrayExpression
+} {
   const expr: ESTree.ArrayExpression = {
-    type: "ArrayExpression",
+    type: 'ArrayExpression',
     elements: [],
-  };
+  }
   return {
     expr,
     stmt: {
-      type: "ReturnStatement",
+      type: 'ReturnStatement',
       argument: expr,
     },
-  };
+  }
 }
 
 /**
  * Create a new Declaration and Scope for `id`:
  * `function ${id}(_ = MARKER) {}`
  */
-export function createDeclaration(id: ts.Identifier, range: Range): ESTree.FunctionDeclaration {
+export function createDeclaration(
+  id: ts.Identifier,
+  range: Range,
+): ESTree.FunctionDeclaration {
   return withStartEnd(
     {
-      type: "FunctionDeclaration",
+      type: 'FunctionDeclaration',
       id: withStartEnd(
         {
-          type: "Identifier",
+          type: 'Identifier',
           name: ts.idText(id),
         },
         id,
       ),
       params: [],
-      body: { type: "BlockStatement", body: [] },
+      body: { type: 'BlockStatement', body: [] },
     },
     range,
-  );
+  )
 }
 
 export function convertExpression(node: ts.Expression): ESTree.Expression {
   if (ts.isLiteralExpression(node)) {
-    return { type: "Literal", value: node.text };
+    return { type: 'Literal', value: node.text }
   }
   if (ts.isPropertyAccessExpression(node)) {
     if (ts.isPrivateIdentifier(node.name)) {
-      throw new UnsupportedSyntaxError(node.name);
+      throw new UnsupportedSyntaxError(node.name)
     }
     return withStartEnd(
       {
-        type: "MemberExpression",
+        type: 'MemberExpression',
         computed: false,
         optional: false,
         object: convertExpression(node.expression),
@@ -136,109 +150,127 @@ export function convertExpression(node: ts.Expression): ESTree.Expression {
         start: node.expression.getStart(),
         end: node.name.getEnd(),
       },
-    );
+    )
   }
   if (ts.isObjectLiteralExpression(node)) {
     return withStartEnd(
       {
-        type: "ObjectExpression",
-        properties: node.properties.map((prop) => {
+        type: 'ObjectExpression',
+        properties: node.properties.map(prop => {
           if (ts.isPropertyAssignment(prop)) {
             return withStartEnd(
               {
-                type: "Property",
-                key: ts.isIdentifier(prop.name) ? createIdentifier(prop.name) : convertExpression(prop.name as ts.Expression),
+                type: 'Property',
+                key: ts.isIdentifier(prop.name)
+                  ? createIdentifier(prop.name)
+                  : convertExpression(prop.name as ts.Expression),
                 value: convertExpression(prop.initializer),
-                kind: "init",
+                kind: 'init',
                 method: false,
                 shorthand: false,
                 computed: ts.isComputedPropertyName(prop.name),
               } as ESTree.Property,
               prop,
-            );
+            )
           } else if (ts.isShorthandPropertyAssignment(prop)) {
             return withStartEnd(
               {
-                type: "Property",
+                type: 'Property',
                 key: createIdentifier(prop.name),
                 value: createIdentifier(prop.name),
-                kind: "init",
+                kind: 'init',
                 method: false,
                 shorthand: true,
                 computed: false,
               } as ESTree.Property,
               prop,
-            );
+            )
           } else {
-            throw new UnsupportedSyntaxError(prop, "Unsupported property type in object literal");
+            throw new UnsupportedSyntaxError(
+              prop,
+              'Unsupported property type in object literal',
+            )
           }
         }),
       },
       node,
-    );
+    )
   }
   if (ts.isArrayLiteralExpression(node)) {
     return withStartEnd(
       {
-        type: "ArrayExpression",
-        elements: node.elements.map((elem) => {
+        type: 'ArrayExpression',
+        elements: node.elements.map(elem => {
           if (ts.isExpression(elem)) {
-            return convertExpression(elem);
+            return convertExpression(elem)
           } else {
-            throw new UnsupportedSyntaxError(elem, "Unsupported element type in array literal");
+            throw new UnsupportedSyntaxError(
+              elem,
+              'Unsupported element type in array literal',
+            )
           }
         }),
       },
       node,
-    );
+    )
   }
   if (ts.isIdentifier(node)) {
-    return createIdentifier(node);
+    return createIdentifier(node)
   } else if (node.kind == ts.SyntaxKind.NullKeyword) {
-    return { type: "Literal", value: null };
+    return { type: 'Literal', value: null }
   } else {
-    throw new UnsupportedSyntaxError(node);
+    throw new UnsupportedSyntaxError(node)
   }
 }
 
 /**
  * Turn type-only hint statements into "AssignmentExpression" statements.
- * 
+ *
  * TypeScript statement:  type A$TYPE_ONLY = B;
  * ↓
  * ESTree statement:      A$TYPE_ONLY = B;
- * 
+ *
  * This statement will be kept in the final output because of "side effects",
  * so that we can use it to restore the type-only modifier of imports/exports.
- * 
+ *
  * However, the drawback is that it may result in some **import statements**
  * that should be treeshaken not being treeshaken.
  * (This does not affect the treeshake results of exports and other types of statements.)
  */
 export function convertTypeOnlyHintStatement(node: ts.TypeAliasDeclaration) {
-  return withStartEnd({
-    type: "ExpressionStatement",
-    expression: {
-      type: "AssignmentExpression",
-      operator: "=",
-      left: createIdentifier(node.name),
-      right: createIdentifier((node.type as ts.TypeReferenceNode).typeName as ts.Identifier)
+  return withStartEnd(
+    {
+      type: 'ExpressionStatement',
+      expression: {
+        type: 'AssignmentExpression',
+        operator: '=',
+        left: createIdentifier(node.name),
+        right: createIdentifier(
+          (node.type as ts.TypeReferenceNode).typeName as ts.Identifier,
+        ),
+      },
     },
-  }, node);
+    node,
+  )
 }
 
 export interface Range {
-  start: number;
-  end: number;
+  start: number
+  end: number
 }
 
-export function withStartEnd<T extends ESTree.Node>(esNode: T, nodeOrRange: ts.Node | Range): T {
+export function withStartEnd<T extends ESTree.Node>(
+  esNode: T,
+  nodeOrRange: ts.Node | Range,
+): T {
   const range: Range =
-    "start" in nodeOrRange ? nodeOrRange : { start: nodeOrRange.getStart(), end: nodeOrRange.getEnd() };
-  return Object.assign(esNode, range);
+    'start' in nodeOrRange
+      ? nodeOrRange
+      : { start: nodeOrRange.getStart(), end: nodeOrRange.getEnd() }
+  return Object.assign(esNode, range)
 }
 
 export function matchesModifier(node: ts.Node, flags: ts.ModifierFlags) {
-  const nodeFlags = ts.getCombinedModifierFlags(node as any);
-  return (nodeFlags & flags) === flags;
+  const nodeFlags = ts.getCombinedModifierFlags(node as any)
+  return (nodeFlags & flags) === flags
 }

@@ -64,10 +64,10 @@ rollup-plugin-dts
 
 ```ts
 // Rollup
-import { dts } from "rollup-plugin-dts";
+import { dts } from 'rollup-plugin-dts'
 
 // Rolldown
-import { rolldownDts } from "rollup-plugin-dts/rolldown";
+import { rolldownDts } from 'rollup-plugin-dts/rolldown'
 ```
 
 不建议让同一个 `dts()` 自动判断当前 bundler，因为 hook 行为差异隐藏起来后很难 debug。
@@ -91,36 +91,38 @@ import { rolldownDts } from "rollup-plugin-dts/rolldown";
 ### `src/core/context.ts`
 
 ```ts
-import ts from "typescript";
-import type { ResolvedOptions } from "../options.js";
+import ts from 'typescript'
+import type { ResolvedOptions } from '../options.js'
 
 export interface DtsPluginContext {
-  entries: string[];
-  programs: ts.Program[];
-  resolvedOptions: ResolvedOptions;
+  entries: string[]
+  programs: ts.Program[]
+  resolvedOptions: ResolvedOptions
 }
 
 export interface ResolvedModule {
-  code: string;
-  source?: ts.SourceFile;
-  program?: ts.Program;
+  code: string
+  source?: ts.SourceFile
+  program?: ts.Program
 }
 
-export function createDtsContext(resolvedOptions: ResolvedOptions): DtsPluginContext {
+export function createDtsContext(
+  resolvedOptions: ResolvedOptions,
+): DtsPluginContext {
   return {
     entries: [],
     programs: [],
     resolvedOptions,
-  };
+  }
 }
 ```
 
 ### `src/core/constants.ts`
 
 ```ts
-export const TS_EXTENSIONS = /\.([cm]ts|[tj]sx?)$/;
-export const DTS_EXTENSIONS = /\.d\.[cm]?ts$|\.d\.ts$/;
-export const JSON_EXTENSIONS = /\.json$/;
+export const TS_EXTENSIONS = /\.([cm]ts|[tj]sx?)$/
+export const DTS_EXTENSIONS = /\.d\.[cm]?ts$|\.d\.ts$/
+export const JSON_EXTENSIONS = /\.json$/
 ```
 
 如果你项目里已经有 `DTS_EXTENSIONS`、`JSON_EXTENSIONS`，就继续复用 `helpers.ts` 里的，不重复定义。
@@ -134,72 +136,79 @@ export const JSON_EXTENSIONS = /\.json$/;
 ### `src/core/module.ts`
 
 ```ts
-import * as path from "node:path";
-import ts from "typescript";
-import { createProgram } from "../program.js";
-import { DTS_EXTENSIONS } from "../helpers.js";
-import type { DtsPluginContext, ResolvedModule } from "./context.js";
+import * as path from 'node:path'
+import ts from 'typescript'
+import { createProgram } from '../program.js'
+import { DTS_EXTENSIONS } from '../helpers.js'
+import type { DtsPluginContext, ResolvedModule } from './context.js'
 
 export function getModule(
   { entries, programs, resolvedOptions }: DtsPluginContext,
   fileName: string,
   code: string,
 ): ResolvedModule | null {
-  const { compilerOptions, tsconfig } = resolvedOptions;
+  const { compilerOptions, tsconfig } = resolvedOptions
 
   if (!programs.length && DTS_EXTENSIONS.test(fileName)) {
-    return { code };
+    return { code }
   }
 
-  const isEntry = entries.includes(fileName);
+  const isEntry = entries.includes(fileName)
 
-  const existingProgram = programs.find((program) => {
+  const existingProgram = programs.find(program => {
     if (isEntry) {
-      return program.getRootFileNames().includes(fileName);
+      return program.getRootFileNames().includes(fileName)
     }
 
-    const sourceFile = program.getSourceFile(fileName);
+    const sourceFile = program.getSourceFile(fileName)
 
     if (sourceFile && program.isSourceFileFromExternalLibrary(sourceFile)) {
-      return false;
+      return false
     }
 
-    return !!sourceFile;
-  });
+    return !!sourceFile
+  })
 
   if (existingProgram) {
-    const source = existingProgram.getSourceFile(fileName)!;
+    const source = existingProgram.getSourceFile(fileName)!
 
     return {
       code: source.getFullText(),
       source,
       program: existingProgram,
-    };
-  }
-
-  if (!ts.sys.fileExists(fileName)) {
-    return null;
-  }
-
-  if (programs.length > 0 && DTS_EXTENSIONS.test(fileName)) {
-    const shouldBundleExternal = resolvedOptions.includeExternal.length > 0 || resolvedOptions.respectExternal;
-
-    if (shouldBundleExternal) {
-      return { code };
     }
   }
 
-  const newProgram = createProgram(fileName, compilerOptions, tsconfig, resolvedOptions.sourcemap);
+  if (!ts.sys.fileExists(fileName)) {
+    return null
+  }
 
-  programs.push(newProgram);
+  if (programs.length > 0 && DTS_EXTENSIONS.test(fileName)) {
+    const shouldBundleExternal =
+      resolvedOptions.includeExternal.length > 0 ||
+      resolvedOptions.respectExternal
 
-  const source = newProgram.getSourceFile(fileName)!;
+    if (shouldBundleExternal) {
+      return { code }
+    }
+  }
+
+  const newProgram = createProgram(
+    fileName,
+    compilerOptions,
+    tsconfig,
+    resolvedOptions.sourcemap,
+  )
+
+  programs.push(newProgram)
+
+  const source = newProgram.getSourceFile(fileName)!
 
   return {
     code: source.getFullText(),
     source,
     program: newProgram,
-  };
+  }
 }
 ```
 
@@ -221,43 +230,49 @@ Rolldown 兼容时这里要保守一点：
 ### `src/core/resolve.ts`
 
 ```ts
-import * as path from "node:path";
-import ts from "typescript";
-import { getCompilerOptions } from "../program.js";
-import type { DtsPluginContext } from "./context.js";
+import * as path from 'node:path'
+import ts from 'typescript'
+import { getCompilerOptions } from '../program.js'
+import type { DtsPluginContext } from './context.js'
 
 export interface ResolveResult {
-  id: string;
-  external?: boolean;
+  id: string
+  external?: boolean
 }
 
 export function normalizePath(id: string): string {
-  return id.split("\\").join("/");
+  return id.split('\\').join('/')
 }
 
-export function resolveDtsId(ctx: DtsPluginContext, source: string, importer?: string): ResolveResult | null {
+export function resolveDtsId(
+  ctx: DtsPluginContext,
+  source: string,
+  importer?: string,
+): ResolveResult | null {
   if (!importer) {
-    const entry = path.resolve(source);
-    ctx.entries.push(entry);
+    const entry = path.resolve(source)
+    ctx.entries.push(entry)
 
     // Rollup 原来这里可以 return undefined。
     // Rolldown 下建议显式返回 null，让 bundler 自己处理 entry。
-    return null;
+    return null
   }
 
-  importer = normalizePath(importer);
+  importer = normalizePath(importer)
 
-  let resolvedCompilerOptions = ctx.resolvedOptions.compilerOptions;
+  let resolvedCompilerOptions = ctx.resolvedOptions.compilerOptions
 
   if (ctx.resolvedOptions.tsconfig) {
-    const resolvedSource = source.startsWith(".") ? path.resolve(path.dirname(importer), source) : source;
+    const resolvedSource = source.startsWith('.')
+      ? path.resolve(path.dirname(importer), source)
+      : source
 
     resolvedCompilerOptions = getCompilerOptions(
       resolvedSource,
       ctx.resolvedOptions.compilerOptions,
       ctx.resolvedOptions.tsconfig,
       ctx.resolvedOptions.sourcemap,
-    ).compilerOptions;
+    ).compilerOptions
   }
 
   const { resolvedModule } = ts.resolveModuleName(
@@ -268,13 +283,13 @@ export function resolveDtsId(ctx: DtsPluginContext, source: string, importer?: s
       ...resolvedCompilerOptions,
     },
     ts.sys,
-  );
+  )
 
   if (!resolvedModule) {
-    return null;
+    return null
   }
 
-  const packageName = resolvedModule.packageId?.name;
+  const packageName = resolvedModule.packageId?.name
 
   if (
     resolvedModule.isExternalLibraryImport &&
@@ -283,19 +298,22 @@ export function resolveDtsId(ctx: DtsPluginContext, source: string, importer?: s
   ) {
     return {
       id: path.resolve(resolvedModule.resolvedFileName),
-    };
+    }
   }
 
-  if (!ctx.resolvedOptions.respectExternal && resolvedModule.isExternalLibraryImport) {
+  if (
+    !ctx.resolvedOptions.respectExternal &&
+    resolvedModule.isExternalLibraryImport
+  ) {
     return {
       id: source,
       external: true,
-    };
+    }
   }
 
   return {
     id: path.resolve(resolvedModule.resolvedFileName),
-  };
+  }
 }
 ```
 
@@ -314,19 +332,19 @@ src/rolldown.ts
 ### `src/rolldown.ts`
 
 ```ts
-import type { Plugin } from "rolldown";
-import { createDtsPlugin } from "./shared-plugin.js";
-import type { Options } from "./options.js";
+import type { Plugin } from 'rolldown'
+import { createDtsPlugin } from './shared-plugin.js'
+import type { Options } from './options.js'
 
-export type { Options };
+export type { Options }
 
 export function rolldownDts(options: Options = {}): Plugin {
   return createDtsPlugin(options, {
-    bundler: "rolldown",
-  }) as unknown as Plugin;
+    bundler: 'rolldown',
+  }) as unknown as Plugin
 }
 
-export default rolldownDts;
+export default rolldownDts
 ```
 
 再把原来的 Rollup 入口也改成薄封装：
@@ -334,19 +352,19 @@ export default rolldownDts;
 ### `src/index.ts`
 
 ```ts
-import type { PluginImpl } from "rollup";
-import { createDtsPlugin } from "./shared-plugin.js";
-import type { Options } from "./options.js";
+import type { PluginImpl } from 'rollup'
+import { createDtsPlugin } from './shared-plugin.js'
+import type { Options } from './options.js'
 
-export type { Options };
+export type { Options }
 
 const plugin: PluginImpl<Options> = (options = {}) => {
   return createDtsPlugin(options, {
-    bundler: "rollup",
-  });
-};
+    bundler: 'rollup',
+  })
+}
 
-export { plugin as dts, plugin as default };
+export { plugin as dts, plugin as default }
 ```
 
 ---
@@ -358,52 +376,57 @@ export { plugin as dts, plugin as default };
 ### `src/shared-plugin.ts`
 
 ```ts
-import * as path from "node:path";
-import type { Plugin } from "rollup";
-import { resolveDefaultOptions, type Options } from "./options.js";
-import { createPrograms } from "./program.js";
-import { transform } from "./transform/index.js";
-import { getDeclarationId, DTS_EXTENSIONS, JSON_EXTENSIONS } from "./helpers.js";
-import { createDtsContext } from "./core/context.js";
-import { getModule } from "./core/module.js";
-import { resolveDtsId } from "./core/resolve.js";
+import * as path from 'node:path'
+import type { Plugin } from 'rollup'
+import { resolveDefaultOptions, type Options } from './options.js'
+import { createPrograms } from './program.js'
+import { transform } from './transform/index.js'
+import { getDeclarationId, DTS_EXTENSIONS, JSON_EXTENSIONS } from './helpers.js'
+import { createDtsContext } from './core/context.js'
+import { getModule } from './core/module.js'
+import { resolveDtsId } from './core/resolve.js'
 
-const TS_EXTENSIONS = /\.([cm]ts|[tj]sx?)$/;
+const TS_EXTENSIONS = /\.([cm]ts|[tj]sx?)$/
 
 export interface CreateDtsPluginOptions {
-  bundler: "rollup" | "rolldown";
+  bundler: 'rollup' | 'rolldown'
 }
 
-export function createDtsPlugin(options: Options = {}, compat: CreateDtsPluginOptions): Plugin {
-  const resolvedOptions = resolveDefaultOptions(options);
-  const ctx = createDtsContext(resolvedOptions);
-  const transformPlugin = transform(ctx.resolvedOptions.sourcemap);
+export function createDtsPlugin(
+  options: Options = {},
+  compat: CreateDtsPluginOptions,
+): Plugin {
+  const resolvedOptions = resolveDefaultOptions(options)
+  const ctx = createDtsContext(resolvedOptions)
+  const transformPlugin = transform(ctx.resolvedOptions.sourcemap)
 
   return {
-    name: compat.bundler === "rolldown" ? "rolldown-dts" : "dts",
+    name: compat.bundler === 'rolldown' ? 'rolldown-dts' : 'dts',
 
     outputOptions: transformPlugin.outputOptions,
     renderChunk: transformPlugin.renderChunk,
     generateBundle: transformPlugin.generateBundle,
 
     options(inputOptions) {
-      let { input = [] } = inputOptions;
+      let { input = [] } = inputOptions
 
       if (!Array.isArray(input)) {
-        input = typeof input === "string" ? [input] : Object.values(input);
+        input = typeof input === 'string' ? [input] : Object.values(input)
       } else if (input.length > 1) {
-        inputOptions.input = {};
+        inputOptions.input = {}
 
         for (const filename of input) {
-          let name = path.basename(filename);
+          let name = path.basename(filename)
 
           if (!path.isAbsolute(filename)) {
-            name = path.normalize(filename);
+            name = path.normalize(filename)
           }
 
-          name = name.replace(/\.d\.[cm]?ts$/, "").replace(/\.[cm]?[tj]sx?$/, "");
+          name = name
+            .replace(/\.d\.[cm]?ts$/, '')
+            .replace(/\.[cm]?[tj]sx?$/, '')
 
-          inputOptions.input[name] = filename;
+          inputOptions.input[name] = filename
         }
       }
 
@@ -412,86 +435,90 @@ export function createDtsPlugin(options: Options = {}, compat: CreateDtsPluginOp
         ctx.resolvedOptions.compilerOptions,
         ctx.resolvedOptions.tsconfig,
         ctx.resolvedOptions.sourcemap,
-      );
+      )
 
-      return transformPlugin.options.call(this, inputOptions);
+      return transformPlugin.options.call(this, inputOptions)
     },
 
     resolveId(source, importer) {
-      const resolved = resolveDtsId(ctx, source, importer);
+      const resolved = resolveDtsId(ctx, source, importer)
 
       if (!resolved) {
-        return null;
+        return null
       }
 
-      return resolved;
+      return resolved
     },
 
     transform(code, id) {
-      if (!TS_EXTENSIONS.test(id) && !DTS_EXTENSIONS.test(id) && !JSON_EXTENSIONS.test(id)) {
-        return null;
+      if (
+        !TS_EXTENSIONS.test(id) &&
+        !DTS_EXTENSIONS.test(id) &&
+        !JSON_EXTENSIONS.test(id)
+      ) {
+        return null
       }
 
       const addWatchFiles = (module: ReturnType<typeof getModule>) => {
-        if (!module?.program) return;
+        if (!module?.program) return
 
-        const sourceDirectory = path.dirname(id);
+        const sourceDirectory = path.dirname(id)
 
         module.program
           .getSourceFiles()
-          .map((sourceFile) => sourceFile.fileName)
-          .filter((fileName) => fileName.startsWith(sourceDirectory))
-          .forEach((fileName) => {
-            this.addWatchFile(fileName);
-          });
-      };
+          .map(sourceFile => sourceFile.fileName)
+          .filter(fileName => fileName.startsWith(sourceDirectory))
+          .forEach(fileName => {
+            this.addWatchFile(fileName)
+          })
+      }
 
       const handleDtsFile = () => {
-        const module = getModule(ctx, id, code);
+        const module = getModule(ctx, id, code)
 
         if (!module) {
-          return null;
+          return null
         }
 
-        addWatchFiles(module);
+        addWatchFiles(module)
 
-        return transformPlugin.transform.call(this, module.code, id);
-      };
+        return transformPlugin.transform.call(this, module.code, id)
+      }
 
       const treatTsAsDts = () => {
-        const declarationId = getDeclarationId(id);
-        const module = getModule(ctx, declarationId, code);
+        const declarationId = getDeclarationId(id)
+        const module = getModule(ctx, declarationId, code)
 
         if (!module) {
-          return null;
+          return null
         }
 
-        addWatchFiles(module);
+        addWatchFiles(module)
 
-        return transformPlugin.transform.call(this, module.code, declarationId);
-      };
+        return transformPlugin.transform.call(this, module.code, declarationId)
+      }
 
       const generateDts = () => {
-        const module = getModule(ctx, id, code);
+        const module = getModule(ctx, id, code)
 
         if (!module?.source || !module.program) {
-          return null;
+          return null
         }
 
-        addWatchFiles(module);
+        addWatchFiles(module)
 
-        const declarationId = getDeclarationId(id);
+        const declarationId = getDeclarationId(id)
 
-        let declarationText: string | undefined;
-        let declarationMapText: string | undefined;
+        let declarationText: string | undefined
+        let declarationMapText: string | undefined
 
         const { emitSkipped, diagnostics } = module.program.emit(
           module.source,
           (emitFileName, text) => {
-            if (emitFileName.endsWith(".map")) {
-              declarationMapText = text;
+            if (emitFileName.endsWith('.map')) {
+              declarationMapText = text
             } else {
-              declarationText = text;
+              declarationText = text
             }
           },
           undefined,
@@ -499,36 +526,44 @@ export function createDtsPlugin(options: Options = {}, compat: CreateDtsPluginOp
           undefined,
           // @ts-expect-error private TS API used by the original plugin
           true,
-        );
+        )
 
         if (emitSkipped) {
-          const errors = diagnostics.filter((diag) => diag.category === 1);
+          const errors = diagnostics.filter(diag => diag.category === 1)
 
           if (errors.length) {
-            this.error("Failed to compile declaration files.");
+            this.error('Failed to compile declaration files.')
           }
         }
 
         if (!declarationText) {
-          return null;
+          return null
         }
 
-        const cleanDeclarationText = declarationText.replace(/\n?\/\/# sourceMappingURL=[^\n]+/, "");
+        const cleanDeclarationText = declarationText.replace(
+          /\n?\/\/# sourceMappingURL=[^\n]+/,
+          '',
+        )
 
-        return transformPlugin.transform.call(this, cleanDeclarationText, declarationId, declarationMapText);
-      };
+        return transformPlugin.transform.call(
+          this,
+          cleanDeclarationText,
+          declarationId,
+          declarationMapText,
+        )
+      }
 
       if (DTS_EXTENSIONS.test(id)) {
-        return handleDtsFile();
+        return handleDtsFile()
       }
 
       if (JSON_EXTENSIONS.test(id)) {
-        return generateDts();
+        return generateDts()
       }
 
-      return treatTsAsDts() ?? generateDts();
+      return treatTsAsDts() ?? generateDts()
     },
-  };
+  }
 }
 ```
 
@@ -547,18 +582,18 @@ export function createDtsPlugin(options: Options = {}, compat: CreateDtsPluginOp
 ### `src/core/virtual.ts`
 
 ```ts
-export const DTS_VIRTUAL_PREFIX = "\0dts:";
+export const DTS_VIRTUAL_PREFIX = '\0dts:'
 
 export function toDtsVirtualId(id: string): string {
-  return DTS_VIRTUAL_PREFIX + id;
+  return DTS_VIRTUAL_PREFIX + id
 }
 
 export function isDtsVirtualId(id: string): boolean {
-  return id.startsWith(DTS_VIRTUAL_PREFIX);
+  return id.startsWith(DTS_VIRTUAL_PREFIX)
 }
 
 export function fromDtsVirtualId(id: string): string {
-  return id.slice(DTS_VIRTUAL_PREFIX.length);
+  return id.slice(DTS_VIRTUAL_PREFIX.length)
 }
 ```
 
@@ -579,31 +614,31 @@ pnpm add -D rolldown
 ### `tests/rolldown/basic.test.ts`
 
 ```ts
-import { describe, expect, test } from "vitest";
-import { rolldown } from "rolldown";
-import { rolldownDts } from "../../src/rolldown";
+import { describe, expect, test } from 'vitest'
+import { rolldown } from 'rolldown'
+import { rolldownDts } from '../../src/rolldown'
 
-describe("rolldownDts", () => {
-  test("bundles simple dts entry", async () => {
+describe('rolldownDts', () => {
+  test('bundles simple dts entry', async () => {
     const bundle = await rolldown({
-      input: "tests/fixtures/basic/index.d.ts",
+      input: 'tests/fixtures/basic/index.d.ts',
       plugins: [rolldownDts()],
-    });
+    })
 
     const output = await bundle.generate({
-      format: "esm",
-      file: "dist/index.d.ts",
-    });
+      format: 'esm',
+      file: 'dist/index.d.ts',
+    })
 
     const code = output.output
-      .filter((chunk) => chunk.type === "chunk")
-      .map((chunk) => chunk.code)
-      .join("\n");
+      .filter(chunk => chunk.type === 'chunk')
+      .map(chunk => chunk.code)
+      .join('\n')
 
-    expect(code).toContain("interface Foo");
-    expect(code).toContain("export");
-  });
-});
+    expect(code).toContain('interface Foo')
+    expect(code).toContain('export')
+  })
+})
 ```
 
 ### fixture
@@ -611,7 +646,7 @@ describe("rolldownDts", () => {
 ```ts
 // tests/fixtures/basic/index.d.ts
 export interface Foo {
-  name: string;
+  name: string
 }
 ```
 
@@ -642,20 +677,20 @@ export interface Foo {
 
 ```ts
 // tests/fixtures/reexport/index.d.ts
-export type { Foo } from "./foo";
-export { Bar } from "./bar";
-export * from "./baz";
+export type { Foo } from './foo'
+export { Bar } from './bar'
+export * from './baz'
 ```
 
 ```ts
 // tests/fixtures/global/index.d.ts
 declare global {
   interface Window {
-    __ZEUS__: boolean;
+    __ZEUS__: boolean
   }
 }
 
-export {};
+export {}
 ```
 
 ---
@@ -698,18 +733,18 @@ export {};
 如果想避免强 peer，可以 `src/rolldown.ts` 不直接 import Rolldown 类型：
 
 ```ts
-import type { Options } from "./options.js";
-import { createDtsPlugin } from "./shared-plugin.js";
+import type { Options } from './options.js'
+import { createDtsPlugin } from './shared-plugin.js'
 
-export type { Options };
+export type { Options }
 
 export function rolldownDts(options: Options = {}) {
   return createDtsPlugin(options, {
-    bundler: "rolldown",
-  });
+    bundler: 'rolldown',
+  })
 }
 
-export default rolldownDts;
+export default rolldownDts
 ```
 
 这样最干净。
@@ -719,38 +754,38 @@ export default rolldownDts;
 ## 12. Rolldown 配置使用示例
 
 ```ts
-import { defineConfig } from "rolldown";
-import { rolldownDts } from "rollup-plugin-dts/rolldown";
+import { defineConfig } from 'rolldown'
+import { rolldownDts } from 'rollup-plugin-dts/rolldown'
 
 export default defineConfig({
-  input: "./temp/packages/compiler/src/index.d.ts",
+  input: './temp/packages/compiler/src/index.d.ts',
   output: {
-    file: "./packages/compiler/dist/compiler.d.ts",
-    format: "esm",
+    file: './packages/compiler/dist/compiler.d.ts',
+    format: 'esm',
   },
   plugins: [
     rolldownDts({
       respectExternal: false,
     }),
   ],
-});
+})
 ```
 
 如果你要在 Zeus 里试：
 
 ```ts
 // scripts/rolldown.dts.config.ts
-import { defineConfig } from "rolldown";
-import { rolldownDts } from "rollup-plugin-dts/rolldown";
+import { defineConfig } from 'rolldown'
+import { rolldownDts } from 'rollup-plugin-dts/rolldown'
 
 export default defineConfig({
-  input: "./temp/packages/compiler/src/index.d.ts",
+  input: './temp/packages/compiler/src/index.d.ts',
   output: {
-    file: "./packages/compiler/dist/compiler.d.ts",
-    format: "esm",
+    file: './packages/compiler/dist/compiler.d.ts',
+    format: 'esm',
   },
   plugins: [rolldownDts()],
-});
+})
 ```
 
 ---
@@ -816,13 +851,13 @@ PR 4：文档与示例
 
 ```ts
 // Rollup
-import { dts } from "rollup-plugin-dts";
+import { dts } from 'rollup-plugin-dts'
 
 // Rolldown
-import { rolldownDts } from "rollup-plugin-dts/rolldown";
+import { rolldownDts } from 'rollup-plugin-dts/rolldown'
 ```
 
 这样风险最低，也最容易维护。
 
-[1]: https://github.com/Swatinem/rollup-plugin-dts "GitHub - Swatinem/rollup-plugin-dts: A rollup plugin to generate .d.ts rollup files for your typescript project · GitHub"
-[2]: https://rolldown.rs/apis/plugin-api "Plugin API | Rolldown"
+[1]: https://github.com/Swatinem/rollup-plugin-dts 'GitHub - Swatinem/rollup-plugin-dts: A rollup plugin to generate .d.ts rollup files for your typescript project · GitHub'
+[2]: https://rolldown.rs/apis/plugin-api 'Plugin API | Rolldown'
