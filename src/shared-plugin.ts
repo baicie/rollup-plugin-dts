@@ -18,6 +18,10 @@ export interface CreateDtsPluginOptions {
   bundler: 'rollup' | 'rolldown'
 }
 
+function isVirtualModuleId(id: string): boolean {
+  return id[0] === '\0'
+}
+
 export function createDtsPlugin(
   options: Options = {},
   compat: CreateDtsPluginOptions,
@@ -108,6 +112,10 @@ export function createDtsPlugin(
     },
 
     resolveId(source, importer) {
+      if (isVirtualModuleId(source) || (importer && isVirtualModuleId(importer))) {
+        return null
+      }
+
       const resolved = resolveDtsId(ctx, source, importer)
       if (!resolved) {
         return null
@@ -116,6 +124,10 @@ export function createDtsPlugin(
     },
 
     transform(code, id) {
+      if (isVirtualModuleId(id)) {
+        return null
+      }
+
       if (
         !TS_EXTENSIONS.test(id) &&
         !DTS_EXTENSIONS.test(id) &&
