@@ -1,5 +1,8 @@
 import * as path from 'node:path'
+import type * as ESTree from 'estree'
+import MagicString from 'magic-string'
 import type { Plugin, TransformResult } from 'rollup'
+import ts from 'typescript'
 import { type Options, resolveDefaultOptions } from './options.js'
 import { createPrograms } from './program.js'
 import { transform } from './transform/index.js'
@@ -20,6 +23,269 @@ export interface CreateDtsPluginOptions {
 
 function isVirtualModuleId(id: string): boolean {
   return id[0] === '\0'
+}
+
+function isValidIdentifier(name: string): boolean {
+  return /^[$A-Z_a-z][$\w]*$/.test(name)
+}
+
+function printIdentifier(name: string): string {
+  return isValidIdentifier(name) ? name : `_${name}`
+}
+
+function printExpression(node: ESTree.Node): string {
+  switch (node.type) {
+    case 'ArrayExpression':
+      return `[${node.elements.map(element => (element ? printExpression(element) : '')).join(', ')}]`
+    case 'AssignmentPattern':
+      return `${printExpression(node.left)} = ${printExpression(node.right)}`
+    case 'CallExpression':
+      return `${printExpression(node.callee)}(${node.arguments.map(arg => printExpression(arg)).join(', ')})`
+    case 'FunctionExpression':
+      return `function(${node.params.map(param => printExpression(param)).join(', ')}) ${printBlock(node.body)}`
+    case 'Identifier':
+      return printIdentifier(node.name)
+    case 'Literal':
+      return JSON.stringify(node.value)
+    case 'MemberExpression':
+      return node.computed
+        ? `${printExpression(node.object)}[${printExpression(node.property)}]`
+        : `${printExpression(node.object)}.${printExpression(node.property)}`
+    case 'ObjectExpression':
+      return `{ ${node.properties.map(prop => printProperty(prop)).join(', ')} }`
+    default:
+      return 'undefined'
+  }
+}
+
+function printProperty(node: ESTree.Property | ESTree.SpreadElement): string {
+  if (node.type === 'SpreadElement') {
+    return `...${printExpression(node.argument)}`
+  }
+  const key = node.computed
+    ? `[${printExpression(node.key)}]`
+    : printExpression(node.key)
+  return node.shorthand ? key : `${key}: ${printExpression(node.value)}`
+}
+
+function printBlock(node: ESTree.BlockStatement): string {
+  return `{${node.body.map(printStatement).join('')}}`
+}
+
+function printImportSpecifier(specifier: ESTreeImports[number]): string {
+  switch (specifier.type) {
+    case 'ImportDefaultSpecifier':
+      return printIdentifier(specifier.local.name)
+    case 'ImportNamespaceSpecifier':
+      return `* as ${printIdentifier(specifier.local.name)}`
+    case 'ImportSpecifier': {
+      const imported =
+        specifier.imported.type === 'Identifier'
+          ? printIdentifier(specifier.imported.name)
+          : JSON.stringify(specifier.imported.value)
+      const local = printIdentifier(specifier.local.name)
+      return imported === local ? imported : `${imported} as ${local}`
+    }
+  }
+}
+
+type ESTreeImports = ESTree.ImportDeclaration['specifiers']
+
+function printExportSpecifier(specifier: ESTree.ExportSpecifier): string {
+  const local =
+    specifier.local.type === 'Identifier'
+      ? printIdentifier(specifier.local.name)
+      : JSON.stringify(specifier.local.value)
+  const exported =
+    specifier.exported.type === 'Identifier'
+      ? printIdentifier(specifier.exported.name)
+      : JSON.stringify(specifier.exported.value)
+  return local === exported ? local : `${local} as ${exported}`
+}
+
+function printStatement(
+  node: ESTree.Statement | ESTree.ModuleDeclaration,
+): string {
+  switch (node.type) {
+    case 'ExportAllDeclaration':
+      return node.exported && node.exported.type === 'Identifier'
+        ? `export * as ${printIdentifier(node.exported.name)} from ${JSON.stringify(node.source.value)};`
+        : `export * from ${JSON.stringify(node.source.value)};`
+    case 'ExportDefaultDeclaration':
+      return `export default ${printExpression(node.declaration as ESTree.Node)};`
+    case 'ExportNamedDeclaration': {
+      const specifiers = node.specifiers
+        .filter(specifier => specifier.type === 'ExportSpecifier')
+        .map(specifier => printExportSpecifier(specifier))
+        .join(', ')
+      const source = node.source
+        ? ` from ${JSON.stringify(node.source.value)}`
+        : ''
+      return `export { ${specifiers} }${source};`
+    }
+    case 'ExpressionStatement':
+      return `${printExpression(node.expression)};`
+    case 'FunctionDeclaration':
+      return `function ${printIdentifier(node.id?.name ?? 'anonymous')}(${node.params.map(param => printExpression(param)).join(', ')}) ${printBlock(node.body)}`
+    case 'ImportDeclaration': {
+      const defaultSpecifiers = node.specifiers.filter(
+        specifier => specifier.type === 'ImportDefaultSpecifier',
+      )
+      const namespaceSpecifiers = node.specifiers.filter(
+        specifier => specifier.type === 'ImportNamespaceSpecifier',
+      )
+      const namedSpecifiers = node.specifiers.filter(
+        specifier => specifier.type === 'ImportSpecifier',
+      )
+      const specifiers = [
+        ...defaultSpecifiers.map(printImportSpecifier),
+        ...namespaceSpecifiers.map(printImportSpecifier),
+        namedSpecifiers.length
+          ? `{ ${namedSpecifiers.map(printImportSpecifier).join(', ')} }`
+          : '',
+      ].filter(Boolean)
+
+      return specifiers.length
+        ? `import ${specifiers.join(', ')} from ${JSON.stringify(node.source.value)};`
+        : `import ${JSON.stringify(node.source.value)};`
+    }
+    case 'ReturnStatement':
+      return `return ${node.argument ? printExpression(node.argument) : ''};`
+    default:
+      return ''
+  }
+}
+
+function printRolldownLinkerCode(ast: ESTree.Program): string {
+  return ast.body.map(printStatement).join('\n')
+}
+
+function stripRolldownModuleExports(fileName: string, code: string): string {
+  const source = ts.createSourceFile(
+    fileName,
+    code,
+    ts.ScriptTarget.Latest,
+    true,
+  )
+  const magicCode = new MagicString(code)
+
+  for (const statement of source.statements) {
+    if (ts.isExportDeclaration(statement) || ts.isExportAssignment(statement)) {
+      let end = statement.getEnd()
+      if (code[end] === ';') {
+        end += 1
+      }
+      if (code[end] === '\n') {
+        end += 1
+      }
+      magicCode.remove(statement.getFullStart(), end)
+    }
+  }
+
+  return magicCode.toString().trim()
+}
+
+function getRolldownChunkExports(fileName: string, code: string): string {
+  const source = ts.createSourceFile(
+    fileName,
+    code,
+    ts.ScriptTarget.Latest,
+    true,
+  )
+  return source.statements
+    .filter(ts.isExportDeclaration)
+    .filter(statement => !statement.moduleSpecifier)
+    .map(statement => statement.getText(source))
+    .join('\n')
+}
+
+function collectDtsDeclarationNames(fileName: string, code: string): string[] {
+  const source = ts.createSourceFile(
+    fileName,
+    code,
+    ts.ScriptTarget.Latest,
+    true,
+  )
+  const names: string[] = []
+  for (const statement of source.statements) {
+    if (
+      (ts.isClassDeclaration(statement) ||
+        ts.isEnumDeclaration(statement) ||
+        ts.isFunctionDeclaration(statement) ||
+        ts.isInterfaceDeclaration(statement) ||
+        ts.isModuleDeclaration(statement) ||
+        ts.isTypeAliasDeclaration(statement)) &&
+      statement.name &&
+      ts.isIdentifier(statement.name)
+    ) {
+      if (names[names.length - 1] !== statement.name.text) {
+        names.push(statement.name.text)
+      }
+    } else if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name)) {
+          names.push(declaration.name.text)
+        }
+      }
+    }
+  }
+  return names
+}
+
+function collectDtsExportedNames(fileName: string, code: string): Set<string> {
+  const source = ts.createSourceFile(
+    fileName,
+    code,
+    ts.ScriptTarget.Latest,
+    true,
+  )
+  const exportedNames = new Set<string>()
+
+  for (const statement of source.statements) {
+    if (
+      ts.isExportDeclaration(statement) &&
+      !statement.moduleSpecifier &&
+      statement.exportClause &&
+      ts.isNamedExports(statement.exportClause)
+    ) {
+      for (const specifier of statement.exportClause.elements) {
+        exportedNames.add((specifier.propertyName ?? specifier.name).text)
+      }
+    }
+  }
+
+  return exportedNames
+}
+
+function renameDtsIdentifiers(
+  fileName: string,
+  code: string,
+  renames: Map<string, string>,
+): string {
+  if (!renames.size) {
+    return code
+  }
+
+  const source = ts.createSourceFile(
+    fileName,
+    code,
+    ts.ScriptTarget.Latest,
+    true,
+  )
+  const magicCode = new MagicString(code)
+
+  function visit(node: ts.Node) {
+    if (ts.isIdentifier(node)) {
+      const replacement = renames.get(node.text)
+      if (replacement) {
+        magicCode.overwrite(node.getStart(source), node.getEnd(), replacement)
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+
+  return magicCode.toString()
 }
 
 export function createDtsPlugin(
@@ -45,16 +311,31 @@ export function createDtsPlugin(
     }
 
     rolldownDtsModules.set(id.split('\\').join('/'), String(result.code))
+    if ('ast' in result && result.ast) {
+      // Rolldown does not consume Rollup's custom transform AST for linking, so give it equivalent JS.
+      return {
+        ...result,
+        code: printRolldownLinkerCode(result.ast as ESTree.Program),
+        map: null,
+      }
+    }
     return result
   }
 
-  const getRolldownChunkCode = (chunk: {
-    modules?: Record<string, unknown>
-  }): string | undefined => {
+  const getRolldownChunkCode = (
+    chunk: { fileName: string; modules?: Record<string, unknown> },
+    inputCode: string,
+  ): string | undefined => {
     if (compat.bundler !== 'rolldown') {
       return undefined
     }
 
+    const modules: Array<{
+      declarations: string[]
+      exportedNames: Set<string>
+      id: string
+      stripped: string
+    }> = []
     for (const id of Object.keys(chunk.modules || {})) {
       const normalizedId = id.split('\\').join('/')
       const declarationId = getDeclarationId(normalizedId).split('\\').join('/')
@@ -62,10 +343,58 @@ export function createDtsPlugin(
         rolldownDtsModules.get(normalizedId) ??
         rolldownDtsModules.get(declarationId)
       if (code) {
-        return code
+        const stripped = stripRolldownModuleExports(normalizedId, code)
+        if (stripped) {
+          modules.push({
+            declarations: collectDtsDeclarationNames(normalizedId, stripped),
+            exportedNames: collectDtsExportedNames(normalizedId, code),
+            id: normalizedId,
+            stripped,
+          })
+        }
       }
     }
-    return undefined
+
+    const occurrences = new Map<string, number[]>()
+    modules.forEach((module, moduleIndex) => {
+      for (const declaration of module.declarations) {
+        const existing = occurrences.get(declaration)
+        if (existing) {
+          existing.push(moduleIndex)
+        } else {
+          occurrences.set(declaration, [moduleIndex])
+        }
+      }
+    })
+
+    const renameCounts = new Map<string, number>()
+    const codes = modules.map((module, moduleIndex) => {
+      const renames = new Map<string, string>()
+      for (const declaration of module.declarations) {
+        const declarationOccurrences = occurrences.get(declaration)
+        if (!declarationOccurrences || declarationOccurrences.length < 2) {
+          continue
+        }
+
+        const preferredModuleIndex =
+          declarationOccurrences.find(index =>
+            modules[index]?.exportedNames.has(declaration),
+          ) ?? declarationOccurrences[declarationOccurrences.length - 1]
+
+        if (moduleIndex !== preferredModuleIndex) {
+          const count = (renameCounts.get(declaration) ?? 0) + 1
+          renameCounts.set(declaration, count)
+          renames.set(declaration, `${declaration}$${count}`)
+        }
+      }
+      return renameDtsIdentifiers(module.id, module.stripped, renames)
+    })
+
+    const exports = getRolldownChunkExports(chunk.fileName, inputCode)
+    if (exports) {
+      codes.push(exports)
+    }
+    return codes.length ? `${codes.join('\n\n')}\n` : undefined
   }
 
   return {
@@ -75,7 +404,7 @@ export function createDtsPlugin(
     renderChunk(inputCode, chunk, outputOptions, meta) {
       return transformPlugin.renderChunk.call(
         this,
-        getRolldownChunkCode(chunk) ?? inputCode,
+        getRolldownChunkCode(chunk, inputCode) ?? inputCode,
         chunk,
         outputOptions,
         meta,
@@ -112,7 +441,10 @@ export function createDtsPlugin(
     },
 
     resolveId(source, importer) {
-      if (isVirtualModuleId(source) || (importer && isVirtualModuleId(importer))) {
+      if (
+        isVirtualModuleId(source) ||
+        (importer && isVirtualModuleId(importer))
+      ) {
         return null
       }
 
@@ -227,7 +559,7 @@ export function createDtsPlugin(
         return generateDts()
       }
 
-      return treatTsAsDts() ?? generateDts()
+      return generateDts() ?? treatTsAsDts()
     },
   }
 }

@@ -1,4 +1,5 @@
 import preprocess from "./preprocess.js";
+import rolldown from "./rolldown.js";
 import sourcemap from "./sourcemap.js";
 import testcases from "./testcases.js";
 import { Harness } from "./utils.js";
@@ -9,6 +10,7 @@ async function main() {
   const harness = new Harness();
 
   preprocess(harness);
+  rolldown(harness);
   sourcemap(harness);
   testcases(harness);
 
