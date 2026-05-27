@@ -1,4 +1,4 @@
-import { dts } from "rollup-plugin-dts";
+import { dts } from "@baicie/plugin-dts";
 
 export default [
   {

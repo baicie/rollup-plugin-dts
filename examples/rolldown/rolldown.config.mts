@@ -1,4 +1,4 @@
-import { rolldownDts } from "rollup-plugin-dts/rolldown";
+import { rolldownDts } from "@baicie/plugin-dts/rolldown";
 
 export default [
   // Bundle JS output
